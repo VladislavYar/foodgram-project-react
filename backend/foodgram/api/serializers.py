@@ -1,11 +1,16 @@
 import base64
 
-from app.models import (Favorite, Ingredient, IngredientRecipe, Recipe,
-                        ShoppingCart, Tag, TagRecipe)
-from core.validators import validate_favorite_shopping_cart, validate_subscribe
+from django.db import transaction
+from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.core.files.base import ContentFile
 from rest_framework import serializers
+from rest_framework.serializers import ValidationError
+
+from app.models import (Favorite, Ingredient, IngredientRecipe, Recipe,
+                        ShoppingCart, Tag, TagRecipe)
+from core.validators import (validate_favorite_shopping_cart,
+                             validate_subscribe, validate_tags_ingredients)
 from users.models import Subscribe, User
 
 
@@ -38,7 +43,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         """Сохраняет захешированный пароль."""
         validated_data['password'] = make_password(validated_data.
                                                    get('password'))
-        return super(UserRegistrationSerializer, self).create(validated_data)
+        return super().create(validated_data)
 
 
 class UserSubscribeSerializer(serializers.ModelSerializer):
@@ -58,7 +63,7 @@ class UserSubscribeSerializer(serializers.ModelSerializer):
 
     def get_recipes_count(self, obj):
         """Возвращает кол-во рецептов автора."""
-        return obj.recipe.count()
+        return obj.recipes.count()
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -87,9 +92,19 @@ class IngredientSerializer(serializers.ModelSerializer):
 
 class IngredientAmountSerializer(serializers.Serializer):
 
-    amount = serializers.IntegerField(min_value=0, max_value=32767)
+    amount = serializers.IntegerField()
     id = serializers.ModelField(model_field=Ingredient(
                                 )._meta.get_field('id'))
+
+    def validate_amount(self, data):
+        """Валидация поля 'amount'."""
+        if (settings.AMOUNT_MIN_VALUE > data or
+           data > settings.AMOUNT_MAX_VALUE):
+            message = ('Количество ингредиента должно быть '
+                       f'больше {settings.AMOUNT_MIN_VALUE - 1} и '
+                       f'меньше {settings.AMOUNT_MAX_VALUE + 1}.')
+            raise ValidationError(message)
+        return data
 
 
 class IngredientRecipeSerializer(serializers.ModelSerializer):
@@ -166,6 +181,7 @@ class RecipeSerializer(serializers.ModelSerializer):
                                               queryset=Tag.objects.all())
     ingredients = IngredientAmountSerializer(many=True)
     image = Base64ImageField()
+    cooking_time = serializers.IntegerField()
 
     class Meta:
         fields = (
@@ -177,26 +193,32 @@ class RecipeSerializer(serializers.ModelSerializer):
             'author': {'read_only': True},
         }
 
-    def _save_update_tags_ingredients(self, serializer, data,
-                                      name_field, recipe_pk, model=None,
-                                      old_data=None):
+    def _delete_old_tags_or_ingredients(self, recipe, name_field):
+        """Удаляет старые записи M:M рецепты-(теги, ингредиенты)
+            при PATCH-запросе."""
+        metod = self.context.get('request').method
+        if metod == 'PATCH' and name_field == 'ingredient':
+            recipe.ingredients_recipe.all().delete()
+        elif metod == 'PATCH' and name_field == 'tag':
+            recipe.tags_recipe.all().delete()
+
+    def _save_tags_or_ingredients(self, serializer, data,
+                                  name_field, recipe):
         """Сохраняет(обновляет) данные тегов и ингредиентов."""
         if name_field == 'ingredient':
-            [field.update({'recipe': recipe_pk, name_field:
-             field.get('id')}) for field in data]
-        else:
-            data = [{'recipe': recipe_pk, name_field: field.pk}
+            for field in data:
+                new_ingredient = {'recipe': recipe.pk, name_field:
+                                  field.get('id')}
+                field.pop('id')
+                field.update(new_ingredient)
+        elif name_field == 'tag':
+            data = [{'recipe': recipe.pk, name_field: field.pk}
                     for field in data]
+
         data = serializer(data=data, many=True)
         data.is_valid(raise_exception=True)
 
-        metod = self.context.get('request').method
-        if metod == 'PATCH' and name_field == 'ingredient':
-            [model.objects.filter(recipe=recipe_pk,
-             ingredient=field.pk).delete() for field in old_data]
-        elif metod == 'PATCH' and name_field == 'tag':
-            [model.objects.filter(recipe=recipe_pk,
-             tag=field.pk).delete() for field in old_data]
+        self._delete_old_tags_or_ingredients(recipe, name_field)
 
         data.save()
 
@@ -222,6 +244,7 @@ class RecipeSerializer(serializers.ModelSerializer):
          for key, value in id_amount.items()]
         return ingredients
 
+    @transaction.atomic
     def create(self, validated_data):
         """Сохраняет рецепт в базе."""
         obj = Recipe.objects.create(author=self.context.get('request').user,
@@ -233,15 +256,15 @@ class RecipeSerializer(serializers.ModelSerializer):
 
         ingredients = self._summ_values_same_fields(validated_data.pop(
                                                     'ingredients'))
-        self._save_update_tags_ingredients(IngredientRecipeSerializer,
-                                           ingredients, 'ingredient', obj.pk)
+        self._save_tags_or_ingredients(IngredientRecipeSerializer, ingredients,
+                                       'ingredient', obj)
 
         tags = list(set(validated_data.pop('tags')))
-        self._save_update_tags_ingredients(TagRecipeSerializer,
-                                           tags, 'tag', obj.pk)
+        self._save_tags_or_ingredients(TagRecipeSerializer, tags, 'tag', obj)
 
         return obj
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         """Обновляет рецепт в базе."""
         instance.name = validated_data.get('name')
@@ -251,16 +274,13 @@ class RecipeSerializer(serializers.ModelSerializer):
 
         ingredients = self._summ_values_same_fields(validated_data.pop(
                                                     'ingredients'))
-        ingredients_old = instance.ingredients.all()
-        self._save_update_tags_ingredients(IngredientRecipeSerializer,
-                                           ingredients, 'ingredient',
-                                           instance.pk, IngredientRecipe,
-                                           ingredients_old)
+        self._save_tags_or_ingredients(IngredientRecipeSerializer,
+                                       ingredients, 'ingredient',
+                                       instance)
 
         tags = validated_data.pop('tags')
-        tags_old = instance.tags.all()
-        self._save_update_tags_ingredients(TagRecipeSerializer, tags, 'tag',
-                                           instance.pk, TagRecipe, tags_old)
+        self._save_tags_or_ingredients(TagRecipeSerializer, tags, 'tag',
+                                       instance)
 
         instance.save()
         return instance
@@ -278,6 +298,22 @@ class RecipeSerializer(serializers.ModelSerializer):
                  )
         return data
 
+    def validate_tags(self, data):
+        return validate_tags_ingredients(data)
+
+    def validate_ingredients(self, data):
+        return validate_tags_ingredients(data)
+
+    def validate_cooking_time(self, data):
+        """Валидация поле 'cooking_time'."""
+        if (settings.COOKING_TIME_MIN_VALUE > data or
+           data > settings.COOKING_TIME_MAX_VALUE):
+            message = ('Время готовки должно быть '
+                       f'больше {settings.COOKING_TIME_MIN_VALUE - 1} и '
+                       f'меньше {settings.COOKING_TIME_MAX_VALUE + 1}.')
+            raise ValidationError(message)
+        return data
+
     def validate(self, data):
         """Валидирует поля при PATCH-запросе."""
         if self.context.get('request').method == 'PATCH':
@@ -289,7 +325,7 @@ class SubscribeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Subscribe
-        fields = ('user, author, ')
+        fields = '__all__'
         extra_kwargs = {
             'user': {'required': False},
             'author': {'required': False},
@@ -308,7 +344,7 @@ class SubscribeSerializer(serializers.ModelSerializer):
         """Возвращает автора, на которого подписались."""
         recipes_limit = self._get_recipes_limit()
         recipes = RecipeReadOnlyFavoriteShoppingSubscribeSerializer(
-            obj.author.recipe.all()[:recipes_limit], many=True
+            obj.author.recipes.all()[:recipes_limit], many=True
         ).data
         data = UserSubscribeSerializer(obj.author,
                                        context={'request': obj}).data

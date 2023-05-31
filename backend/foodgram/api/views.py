@@ -1,18 +1,22 @@
-from api.serializers import (FavoriteSerializer, IngredientSerializer,
-                             RecipeSerializer, ShoppingCartSerializer,
-                             SubscribeSerializer, TagSerializer)
-from app.models import Favorite, Ingredient, Recipe, ShoppingCart, Tag
-from core.actions import action_shopping_cart_fovorite
-from core.filters import IngredientSearchFilter, RecipeFilter
-from core.mixins import PDF, ListDestroyCreateModelViewSet
-from core.permissions import (AuthorOrReadOnlyPermission,
-                              ReadFileIsAuthenticatedPermission)
+from django.db.models import Sum
+from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+
+from api.serializers import (FavoriteSerializer, IngredientSerializer,
+                             RecipeSerializer, ShoppingCartSerializer,
+                             SubscribeSerializer, TagSerializer)
+from app.models import (Favorite, Ingredient, IngredientRecipe,
+                        Recipe, ShoppingCart, Tag)
+from core.actions import action_shopping_cart_fovorite
+from core.filters import IngredientSearchFilter, RecipeFilter
+from core.mixins import PDF, ListDestroyCreateModelViewSet
+from core.permissions import (AuthorOrReadOnlyPermission,
+                              ReadFileIsAuthenticatedPermission)
 from users.models import Subscribe
 
 
@@ -22,8 +26,7 @@ class SubscribeViewSet(ListDestroyCreateModelViewSet):
 
     def get_queryset(self):
         """Отдаёт объекты для вывода."""
-        user = self.request.user.pk
-        return Subscribe.objects.filter(user=user, )
+        return self.request.user.follower.all()
 
     def get_object(self):
         """Отдаёт объект для удаления."""
@@ -61,7 +64,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
            с получением файла необходимых покупок."""
         if self.action == 'get_download_shopping_cart':
             return (ReadFileIsAuthenticatedPermission(), )
-        return super(RecipeViewSet, self).get_permissions()
+        return super().get_permissions()
 
     @action(methods=('POST', 'DELETE', ),
             detail=True, url_path='favorite', url_name='favorite',)
@@ -78,45 +81,41 @@ class RecipeViewSet(viewsets.ModelViewSet):
                                              ShoppingCartSerializer,
                                              ShoppingCart)
 
-    def _get_pdf_file_as_byte_str(self, info):
+    def _get_pdf_file_as_byte_str(self, ingredients):
         """Отдаёт PDF-файл в виде байт-строки."""
         pdf = PDF()
         pdf.alias_nb_pages()
         pdf.add_page()
         pdf.set_title('Ingredients')
         pdf.set_author('Yaremenko V.V.')
-        pdf.set_font('CuprumRU', '', 14)
+        pdf.set_font(settings.FONT, '', settings.SIZE_FONT)
 
         line_number = 1
-        pdf.cell(0, 10, txt='   Необходимые ингредиенты:', ln=1)
-        for key, value in info.items():
-            pdf.cell(0, 10, ln=1,
-                     txt='         '
-                         f'{line_number}) {key}({value[1]}) — {value[0]}',
-                     )
+        pdf.cell(settings.CELL_WIDTH, settings.CELL_HEIGNT,
+                 txt='   Необходимые ингредиенты:', ln=settings.LINE)
+        for ingredient in ingredients:
+            pdf.cell(settings.CELL_WIDTH, settings.CELL_HEIGNT,
+                     ln=settings.LINE,
+                     txt=(f'         {line_number}) '
+                          f'{ingredient["ingredient__name"]}'
+                          f'({ingredient["ingredient__measurement_unit"]})'
+                          f'— {ingredient["amount"]}'),)
             line_number += 1
 
         return pdf.output(dest='S').encode('latin-1')
 
     def _get_info_ingredients(self, request):
         """Получает информацию об ингредиентах в рецептах."""
-        recipes = request.user.shopping_cart_user.all()
-        info = {}
-        for recipe in recipes:
-            ingredients = recipe.recipe.ingredient_recipe.all()
-            for ingredient in ingredients:
-                measurement_unit = ingredient.ingredient.measurement_unit
-                info.setdefault(ingredient.ingredient.name,
-                                [0, measurement_unit])
-                key = ingredient.ingredient.name
-                info[key][0] += ingredient.amount
-        return info
+        recipes = request.user.shopping_cart_user.values('recipe').all()
+        return IngredientRecipe.objects.filter(recipe__in=recipes).values(
+                        'ingredient__name', 'ingredient__measurement_unit'
+                        ).annotate(amount=Sum('amount'))
 
     @action(methods=('GET', ),
             detail=False, url_path='download_shopping_cart',
             url_name='download_shopping_cart', )
     def get_download_shopping_cart(self, request):
         """Отдаёт файл с необходимыми ингредиентами для покупки."""
-        info = self._get_info_ingredients(request)
-        pdf = self._get_pdf_file_as_byte_str(info)
+        ingredients = self._get_info_ingredients(request)
+        pdf = self._get_pdf_file_as_byte_str(ingredients)
         return HttpResponse(pdf, content_type='application/pdf')

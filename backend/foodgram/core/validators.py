@@ -17,7 +17,7 @@ def validate_favorite_shopping_cart(data, request, model, message):
 
 
 def validate_subscribe(context):
-    """Валидирует actions-ы favorite и shopping_cart."""
+    """Валидирует subscribe."""
     author_id = context.get('view').kwargs.get('id')
     author = get_object_or_404(User, pk=author_id)
     user = context.get('request').user
@@ -33,3 +33,10 @@ def validate_subscribe(context):
     elif not is_follower and method == 'DELETE':
         raise ValidationError({'error': 'Вы не подписаны на автора'})
     return {'author': author, 'user': user}
+
+
+def validate_tags_ingredients(data):
+    """Валидирует поля tags и ingredients."""
+    if not data:
+        raise ValidationError('Список не может быть пустым.')
+    return data

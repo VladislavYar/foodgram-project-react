@@ -25,10 +25,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-r504c=m&fc5m8#w(jnll+^#fm%1dz=kyo)1&)5asbe_-iw^b$5'
+SECRET_KEY = os.getenv('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = bool(os.getenv('DEBUG', default=0))
 
 ALLOWED_HOSTS = ['web', 'localhost', '127.0.0.1']
 
@@ -175,7 +175,22 @@ DJOSER = {
     }
     }
 
-SLUG_NAME_UNIT_MAX_LEN = 200
+SLUG_MAX_LEN = 200
+NAME_MAX_LEN = 200
+UNIT_MAX_LEN = 200
 USER_FIELDS_MAX_LEN = 150
 EMAIL_MAX_LEN = 254
 COLOR_MAX_LEN = 7
+AMOUNT_MIN_VALUE = 1
+AMOUNT_MAX_VALUE = 32767
+COOKING_TIME_MIN_VALUE = 1
+COOKING_TIME_MAX_VALUE = 32767
+CELL_WIDTH = 0
+CELL_HEIGNT = 10
+FONT = 'CuprumRU'
+SIZE_FONT = 14
+LINE = 1
+COLOR_RECT = (140, 43, 104, )
+COLOR_HEADER_FOOTER = (159, 43, 104, )
+HEADER_HEIGNT = 25
+FOOTER_HEIGNT = 20
