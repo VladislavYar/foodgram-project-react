@@ -5,12 +5,12 @@ from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.core.files.base import ContentFile
 from rest_framework import serializers
-from rest_framework.serializers import ValidationError
 
 from app.models import (Favorite, Ingredient, IngredientRecipe, Recipe,
                         ShoppingCart, Tag, TagRecipe)
 from core.validators import (validate_favorite_shopping_cart,
-                             validate_subscribe, validate_tags_ingredients)
+                             validate_subscribe, validate_tags_ingredients,
+                             validate_cooking_time_amount, )
 from users.models import Subscribe, User
 
 
@@ -97,14 +97,9 @@ class IngredientAmountSerializer(serializers.Serializer):
                                 )._meta.get_field('id'))
 
     def validate_amount(self, data):
-        """Валидация поля 'amount'."""
-        if (settings.AMOUNT_MIN_VALUE > data or
-           data > settings.AMOUNT_MAX_VALUE):
-            message = ('Количество ингредиента должно быть '
-                       f'больше {settings.AMOUNT_MIN_VALUE - 1} и '
-                       f'меньше {settings.AMOUNT_MAX_VALUE + 1}.')
-            raise ValidationError(message)
-        return data
+        min_max = (settings.AMOUNT_MIN_VALUE, settings.AMOUNT_MAX_VALUE)
+        return validate_cooking_time_amount(data, min_max,
+                                            'Количество ингредиента')
 
 
 class IngredientRecipeSerializer(serializers.ModelSerializer):
@@ -197,10 +192,11 @@ class RecipeSerializer(serializers.ModelSerializer):
         """Удаляет старые записи M:M рецепты-(теги, ингредиенты)
             при PATCH-запросе."""
         metod = self.context.get('request').method
-        if metod == 'PATCH' and name_field == 'ingredient':
-            recipe.ingredients_recipe.all().delete()
-        elif metod == 'PATCH' and name_field == 'tag':
-            recipe.tags_recipe.all().delete()
+        if metod == 'PATCH':
+            if name_field == 'ingredient':
+                recipe.ingredients_recipe.all().delete()
+            if name_field == 'tag':
+                recipe.tags_recipe.all().delete()
 
     def _save_tags_or_ingredients(self, serializer, data,
                                   name_field, recipe):
@@ -211,7 +207,7 @@ class RecipeSerializer(serializers.ModelSerializer):
                                   field.get('id')}
                 field.pop('id')
                 field.update(new_ingredient)
-        elif name_field == 'tag':
+        if name_field == 'tag':
             data = [{'recipe': recipe.pk, name_field: field.pk}
                     for field in data]
 
@@ -305,14 +301,10 @@ class RecipeSerializer(serializers.ModelSerializer):
         return validate_tags_ingredients(data)
 
     def validate_cooking_time(self, data):
-        """Валидация поле 'cooking_time'."""
-        if (settings.COOKING_TIME_MIN_VALUE > data or
-           data > settings.COOKING_TIME_MAX_VALUE):
-            message = ('Время готовки должно быть '
-                       f'больше {settings.COOKING_TIME_MIN_VALUE - 1} и '
-                       f'меньше {settings.COOKING_TIME_MAX_VALUE + 1}.')
-            raise ValidationError(message)
-        return data
+        min_max = (settings.COOKING_TIME_MIN_VALUE,
+                   settings.COOKING_TIME_MAX_VALUE)
+        return validate_cooking_time_amount(data, min_max,
+                                            'Время готовки')
 
     def validate(self, data):
         """Валидирует поля при PATCH-запросе."""

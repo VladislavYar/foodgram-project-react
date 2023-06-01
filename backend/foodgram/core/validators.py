@@ -40,3 +40,14 @@ def validate_tags_ingredients(data):
     if not data:
         raise ValidationError('Список не может быть пустым.')
     return data
+
+
+def validate_cooking_time_amount(data, min_max, beginning_message):
+    """Валидирует поля cooking_time и amount."""
+    if (min_max[0] > data or
+       data > min_max[1]):
+        message = (f'{beginning_message} должно быть '
+                   f'не меньше {min_max[0]} и '
+                   f'не больше {min_max[1]}.')
+        raise ValidationError(message)
+    return data

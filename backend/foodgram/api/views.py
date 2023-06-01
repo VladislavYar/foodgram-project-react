@@ -6,6 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.views import APIView
 
 from api.serializers import (FavoriteSerializer, IngredientSerializer,
                              RecipeSerializer, ShoppingCartSerializer,
@@ -59,13 +60,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
     filterset_class = RecipeFilter
     http_method_names = ('get', 'post', 'patch', 'delete', )
 
-    def get_permissions(self):
-        """Изменяет permission при обращении к action
-           с получением файла необходимых покупок."""
-        if self.action == 'get_download_shopping_cart':
-            return (ReadFileIsAuthenticatedPermission(), )
-        return super().get_permissions()
-
     @action(methods=('POST', 'DELETE', ),
             detail=True, url_path='favorite', url_name='favorite',)
     def post_del_favorite(self, request, pk):
@@ -80,6 +74,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return action_shopping_cart_fovorite(request, pk,
                                              ShoppingCartSerializer,
                                              ShoppingCart)
+
+
+class ShoppingCartView(APIView):
+
+    permission_classes = (ReadFileIsAuthenticatedPermission, )
 
     def _get_pdf_file_as_byte_str(self, ingredients):
         """Отдаёт PDF-файл в виде байт-строки."""
@@ -104,18 +103,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         return pdf.output(dest='S').encode('latin-1')
 
-    def _get_info_ingredients(self, request):
+    def _get_info_ingredients(self, user):
         """Получает информацию об ингредиентах в рецептах."""
-        recipes = request.user.shopping_cart_user.values('recipe').all()
+        recipes = user.shopping_cart_user.values('recipe').all()
         return IngredientRecipe.objects.filter(recipe__in=recipes).values(
                         'ingredient__name', 'ingredient__measurement_unit'
                         ).annotate(amount=Sum('amount'))
 
-    @action(methods=('GET', ),
-            detail=False, url_path='download_shopping_cart',
-            url_name='download_shopping_cart', )
-    def get_download_shopping_cart(self, request):
+    def get(self, request):
         """Отдаёт файл с необходимыми ингредиентами для покупки."""
-        ingredients = self._get_info_ingredients(request)
+        ingredients = self._get_info_ingredients(request.user)
         pdf = self._get_pdf_file_as_byte_str(ingredients)
         return HttpResponse(pdf, content_type='application/pdf')
