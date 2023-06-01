@@ -10,7 +10,7 @@ from app.models import (Favorite, Ingredient, IngredientRecipe, Recipe,
                         ShoppingCart, Tag, TagRecipe)
 from core.validators import (validate_favorite_shopping_cart,
                              validate_subscribe, validate_tags_ingredients,
-                             validate_cooking_time_amount, )
+                             validate_amount, validate_cooking_time, )
 from users.models import Subscribe, User
 
 
@@ -97,9 +97,9 @@ class IngredientAmountSerializer(serializers.Serializer):
                                 )._meta.get_field('id'))
 
     def validate_amount(self, data):
-        min_max = (settings.AMOUNT_MIN_VALUE, settings.AMOUNT_MAX_VALUE)
-        return validate_cooking_time_amount(data, min_max,
-                                            'Количество ингредиента')
+        return validate_amount(data, settings.AMOUNT_MIN_VALUE,
+                               settings.AMOUNT_MAX_VALUE,
+                               'Количество ингредиента')
 
 
 class IngredientRecipeSerializer(serializers.ModelSerializer):
@@ -301,10 +301,9 @@ class RecipeSerializer(serializers.ModelSerializer):
         return validate_tags_ingredients(data)
 
     def validate_cooking_time(self, data):
-        min_max = (settings.COOKING_TIME_MIN_VALUE,
-                   settings.COOKING_TIME_MAX_VALUE)
-        return validate_cooking_time_amount(data, min_max,
-                                            'Время готовки')
+        return validate_cooking_time(data, settings.COOKING_TIME_MIN_VALUE,
+                                     settings.COOKING_TIME_MAX_VALUE,
+                                     'Время готовки')
 
     def validate(self, data):
         """Валидирует поля при PATCH-запросе."""

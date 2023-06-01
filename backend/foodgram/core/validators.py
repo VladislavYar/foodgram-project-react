@@ -42,12 +42,23 @@ def validate_tags_ingredients(data):
     return data
 
 
-def validate_cooking_time_amount(data, min_max, beginning_message):
-    """Валидирует поля cooking_time и amount."""
-    if (min_max[0] > data or
-       data > min_max[1]):
+def validate_amount(data, min_value, max_value, beginning_message):
+    """Валидирует поле amount."""
+    if (min_value > data or
+       data > max_value):
         message = (f'{beginning_message} должно быть '
-                   f'не меньше {min_max[0]} и '
-                   f'не больше {min_max[1]}.')
+                   f'не меньше {min_value} и '
+                   f'не больше {max_value}.')
+        raise ValidationError(message)
+    return data
+
+
+def validate_cooking_time(data, min_value, max_value, beginning_message):
+    """Валидирует поле cooking_time."""
+    if (min_value > data or
+       data > max_value):
+        message = (f'{beginning_message} должно быть '
+                   f'не меньше {min_value} и '
+                   f'не больше {max_value}.')
         raise ValidationError(message)
     return data
