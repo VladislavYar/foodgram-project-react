@@ -118,7 +118,7 @@ class Base64ImageField(serializers.ImageField):
             data = ContentFile(base64.b64decode(data), name='temp.' + ext)
         except (ValueError, AttributeError):
             data = 'no correct'
-        return super(Base64ImageField, self).to_internal_value(data)
+        return super().to_internal_value(data)
 
 
 class RecipeReadOnlyFavoriteShoppingSubscribeSerializer(
