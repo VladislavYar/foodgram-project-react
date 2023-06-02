@@ -24,7 +24,7 @@ class PDF(FPDF):
         self.set_fill_color(*settings.COLOR_HEADER_FOOTER)
         self.rect(0, 0, self.width_a4, settings.HEADER_HEIGNT, 'F')
         self.add_font(settings.FONT, '',
-                      './static/fonts/Cuprum-Bold.ttf',
+                      f'{settings.BASE_DIR}/core/fonts/Cuprum-Bold.ttf',
                       uni=True)
         self.set_font(settings.FONT, '', settings.SIZE_FONT + 6)
         w = self.get_string_width(header_text) + 6
@@ -38,7 +38,8 @@ class PDF(FPDF):
         self.set_fill_color(*settings.COLOR_HEADER_FOOTER)
         self.rect(0, self.height_a4 - settings.FOOTER_HEIGNT,
                   self.width_a4, settings.FOOTER_HEIGNT, 'F')
-        self.add_font(settings.FONT, '', './static/fonts/Cuprum-Bold.ttf',
+        self.add_font(settings.FONT, '',
+                      f'{settings.BASE_DIR}/core/fonts/Cuprum-Bold.ttf',
                       uni=True)
         self.set_font(settings.FONT, '', settings.SIZE_FONT)
         self.cell(settings.CELL_WIDTH, settings.CELL_HEIGNT,
