@@ -31,9 +31,9 @@ SECRET_KEY = os.getenv('SECRET_KEY', default=get_random_secret_key())
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True #bool(os.getenv('DEBUG', default=0))
 
-ALLOWED_HOSTS = ('web', '127.0.0.1')
+ALLOWED_HOSTS = ('web', '127.0.0.1', )
 
-CSRF_TRUSTED_ORIGINS = ('http://localhost', )
+#CSRF_TRUSTED_ORIGINS = ('http://localhost', )
 
 
 # Application definition
@@ -139,7 +139,7 @@ STATIC_URL = '/static/'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 
-MEDIA_URL = 'http://localhost/'
+MEDIA_URL = 'http://localhost/media/'
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
