@@ -10,7 +10,7 @@ class RecipeFilter(FilterSet):
         queryset=Tag.objects.all(),
         field_name='tags__slug',
         to_field_name='slug')
-    is_favorited = NumberFilter(field_name='favorit_recipe__user',
+    is_favorited = NumberFilter(field_name='favorites_recipe__user',
                                 method='is_favorited_filter')
     is_in_shopping_cart = NumberFilter(field_name='shopping_cart_recipe__user',
                                        method='is_in_shopping_cart_filter')
@@ -23,7 +23,7 @@ class RecipeFilter(FilterSet):
         """Фильтр рецпта по избранному."""
         if value == 1:
             return queryset.filter(**{
-                name: self.request.user,
+                name: self.request.user.id,
             })
         return queryset
 
@@ -31,7 +31,7 @@ class RecipeFilter(FilterSet):
         """Фильтр рецпта по списку покупок."""
         if value == 1:
             return queryset.filter(**{
-                name: self.request.user,
+                name: self.request.user.id,
             })
         return queryset
 

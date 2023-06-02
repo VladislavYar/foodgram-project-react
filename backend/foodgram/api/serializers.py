@@ -266,7 +266,10 @@ class RecipeSerializer(serializers.ModelSerializer):
         instance.name = validated_data.get('name')
         instance.text = validated_data.get('text')
         instance.cooking_time = validated_data.get('cooking_time')
-        instance.image = validated_data.get('image')
+
+        new_image = validated_data.get('image')
+        if new_image:
+            instance.image = validated_data.get('image')
 
         ingredients = self._summ_values_same_fields(validated_data.pop(
                                                     'ingredients'))
