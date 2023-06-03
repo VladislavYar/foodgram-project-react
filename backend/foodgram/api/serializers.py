@@ -84,10 +84,7 @@ class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         fields = ('id', 'name', 'measurement_unit', )
         model = Ingredient
-        extra_kwargs = {
-            'name': {'read_only': True},
-            'measurement_unit': {'read_only': True},
-        }
+
 
 
 class IngredientAmountSerializer(serializers.Serializer):
@@ -139,6 +136,9 @@ class RecipePATCHSerializer(serializers.ModelSerializer):
         fields = ('ingredients', 'tags', 'name', 'image',
                   'text', 'cooking_time', )
         model = Recipe
+        extra_kwargs = {
+            'image': {'required': False},
+        }
 
 
 class RecipeReadOnlySerializer(serializers.ModelSerializer):
