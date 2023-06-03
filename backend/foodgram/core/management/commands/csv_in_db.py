@@ -22,7 +22,7 @@ class Command(BaseCommand):
         )
         cursor = connection.cursor()
 
-        with open('./data/ingredients.csv',
+        with open('core/management/commands/data/ingredients.csv',
                   'r', encoding='UTF-8') as file:
             contents = csv.reader(file)
             col_names, number_questions = self.get_col_names(cursor,
