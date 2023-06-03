@@ -22,7 +22,7 @@ class Command(BaseCommand):
         )
         cursor = connection.cursor()
 
-        with open('../../data/ingredients.json',
+        with open('./data/ingredients.json',
                   'r', encoding='UTF-8') as file:
             contents = json.load(file)
             contents = json.dumps(contents)

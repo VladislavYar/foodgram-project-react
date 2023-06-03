@@ -86,7 +86,6 @@ class IngredientSerializer(serializers.ModelSerializer):
         model = Ingredient
 
 
-
 class IngredientAmountSerializer(serializers.Serializer):
 
     amount = serializers.IntegerField()
