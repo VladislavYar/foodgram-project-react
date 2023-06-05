@@ -1,5 +1,7 @@
 ![foodgram Actions Status](https://github.com/VladislavYar/foodgram-project-react/actions/workflows/foodgram.yml/badge.svg)
-
+# Адресс: ```158.160.17.165```
+# mail admin: ```cool.reviewer@yandex.meow```
+# password admin: ```python2022```
 ## Описание
 Проект Foodgram представляет из себя платформу для сбора рецептов от пользователей, с возможность добавление
 в избранное, список покупок, а так же скачивание PDF-файла c необходимыми ингредиентами для блюд.
