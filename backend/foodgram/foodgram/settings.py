@@ -31,7 +31,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', default=get_random_secret_key())
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = bool(os.getenv('DEBUG', default=0))
 
-ADDRESS_SITE = 'http://www.coffeecrush.ru'
+ADDRESS_SITE = 'http://158.160.17.165'
 
 ALLOWED_HOSTS = ('web', )
 
