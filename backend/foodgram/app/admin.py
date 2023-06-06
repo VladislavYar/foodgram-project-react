@@ -14,7 +14,7 @@ class TagAdmin(admin.ModelAdmin):
 class IngredientAdmin(admin.ModelAdmin):
     list_display = ('pk', 'name', 'measurement_unit')
     search_fields = ('name', 'measurement_unit')
-    list_filter = ('name', )
+    list_filter = ('measurement_unit', )
     list_editable = ('name', )
     empty_value_display = '-пусто-'
 
@@ -35,7 +35,7 @@ class RecipeAdmin(admin.ModelAdmin):
                     'get_tags', 'get_ingredients', 'get_count_favorite')
     inlines = (TagRecipeInline, IngredientRecipeInline, )
     search_fields = ('author__username', 'name', )
-    list_filter = ('author', 'name', 'tags__name', )
+    list_filter = ('tags__name', )
     list_editable = ('name', )
     empty_value_display = '-пусто-'
 
@@ -60,25 +60,29 @@ class RecipeAdmin(admin.ModelAdmin):
 
 class FavoriteAdmin(admin.ModelAdmin):
     list_display = ('pk', 'recipe', 'user')
-    search_fields = ('recipe', 'user', )
+    search_fields = ('recipe__name', 'user__username', 'user__email')
+    list_filter = ('recipe__tags', )
     empty_value_display = '-пусто-'
 
 
 class ShoppingCartAdmin(admin.ModelAdmin):
     list_display = ('pk', 'recipe', 'user')
-    search_fields = ('recipe', 'user', )
+    search_fields = ('recipe__name', 'user__username', 'user__email')
+    list_filter = ('recipe__tags', )
     empty_value_display = '-пусто-'
 
 
 class TagRecipeAdmin(admin.ModelAdmin):
     list_display = ('pk', 'recipe', 'tag')
-    search_fields = ('recipe', 'tag', )
+    search_fields = ('recipe__name', 'tag__name', )
     empty_value_display = '-пусто-'
 
 
 class IngredientRecipeAdmin(admin.ModelAdmin):
     list_display = ('pk', 'recipe', 'ingredient', 'amount')
-    search_fields = ('recipe', 'ingredient', )
+    search_fields = ('recipe__name', 'recipe__author__username',
+                     'recipe__author__email')
+    list_filter = ('recipe__tags', )
     empty_value_display = '-пусто-'
 
 

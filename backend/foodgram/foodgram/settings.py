@@ -33,7 +33,7 @@ DEBUG = bool(os.getenv('DEBUG', default=0))
 
 ADDRESS_SITE = 'http://158.160.17.165'
 
-ALLOWED_HOSTS = ('web', )
+ALLOWED_HOSTS = ('web', '127.0.0.1')
 
 CSRF_TRUSTED_ORIGINS = (ADDRESS_SITE, )
 
